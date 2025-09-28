@@ -11,9 +11,10 @@ import { formatChemicalAmount, getRiskLevel } from "@/lib/tri-utils"
 interface FacilityPopupProps {
   facility: FacilityWithReleases
   onClose: () => void
+  onViewDetails?: () => void
 }
 
-export function FacilityPopup({ facility, onClose }: FacilityPopupProps) {
+export function FacilityPopup({ facility, onClose, onViewDetails }: FacilityPopupProps) {
   const riskLevel = getRiskLevel(facility.totalReleases)
   const riskColors = {
     low: "bg-green-500/10 text-green-400 border-green-500/20",
@@ -107,9 +108,15 @@ export function FacilityPopup({ facility, onClose }: FacilityPopupProps) {
 
           {/* Actions */}
           <div className="flex space-x-2 mt-4 pt-4 border-t border-border">
-            <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-              <Link href={`/facilities/${facility.id}`}>View Details</Link>
-            </Button>
+            {onViewDetails ? (
+              <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={onViewDetails}>
+                View Details
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
+                <Link href={`/facilities/${facility.id}`}>View Details</Link>
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="flex-1 bg-transparent">
               Health Info
             </Button>
