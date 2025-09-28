@@ -1,6 +1,7 @@
 "use client"
 
 import { X, MapPinIcon, FactoryIcon, CalendarIcon } from "lucide-react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -106,8 +107,8 @@ export function FacilityPopup({ facility, onClose }: FacilityPopupProps) {
 
           {/* Actions */}
           <div className="flex space-x-2 mt-4 pt-4 border-t border-border">
-            <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-              View Details
+            <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
+              <Link href={`/facilities/${facility.id}`}>View Details</Link>
             </Button>
             <Button variant="outline" size="sm" className="flex-1 bg-transparent">
               Health Info

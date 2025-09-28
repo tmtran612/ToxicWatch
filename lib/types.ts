@@ -10,7 +10,7 @@ export interface TRIFacility {
   longitude: number
   industry: string
   parentCompany?: string
-  reportingYear: number
+  reportingYear: number | null
 }
 
 export interface ChemicalRelease {
@@ -46,13 +46,40 @@ export interface SearchParams {
 }
 
 export interface FacilityWithReleases extends TRIFacility {
-  releases: ChemicalRelease[]
+  releases: Array<{
+    id: string
+    chemicalName: string
+    totalAirEmissions: number
+    totalReleases: number
+    healthImpacts: never[]
+  }>
   totalReleases: number
   topChemicals: Array<{
     name: string
     amount: number
     unit: string
   }>
+}
+
+export interface ProcessedFacility extends FacilityWithReleases {
+  // This can extend FacilityWithReleases if the detailed view has everything the card has, plus more.
+  // Or it can be a separate type if the structures are very different.
+  // For now, let's assume it's the same for simplicity, but you can add more fields.
+}
+
+export interface APIResponse<T = unknown> {
+  success: boolean
+  data?: T
+  count?: number
+  error?: string
+  metadata?: {
+    state?: string
+    processingTimeMs: number
+    totalFacilities?: number
+    validFacilities?: number
+    includeReleaseData?: boolean
+    batchesProcessed?: number
+  }
 }
 
 export interface ComparisonData {

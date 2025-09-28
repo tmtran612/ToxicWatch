@@ -1,23 +1,8 @@
 "use client"
 
-import type React from "react"
-
-import { useRef, useState, useEffect } from "react"
 import { Map, Marker, Overlay } from "pigeon-maps"
-import { LoaderIcon, ZoomInIcon, ZoomOutIcon, LocateIcon, FactoryIcon } from "lucide-react"
+import { LoaderIcon, FactoryIcon } from "lucide-react"
 import type { FacilityWithReleases } from "@/lib/types"
-
-import "leaflet/dist/leaflet.css"
-import L from "leaflet"
-
-// Fix default marker icon issue in Leaflet
-if (typeof window !== "undefined" && L && L.Icon && L.Icon.Default) {
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-    iconUrl: require('leaflet/dist/images/marker-icon.png'),
-    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-  })
-}
 
 interface MapViewProps {
   facilities: FacilityWithReleases[]
@@ -47,64 +32,52 @@ export function MapView({ facilities, selectedFacility, onFacilitySelect, loadin
     )
   }
 
-  // Default to Virginia center
-  const center: [number, number] = [37.4316, -78.6569]
-  const zoom = 7
+  if (facilities.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted/20">
+        <div className="text-center">
+          <FactoryIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <div className="text-muted-foreground">No facilities found for the selected criteria.</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Calculate center based on selected facility or default to Virginia center
+  let center: [number, number] = [37.4316, -78.6569]
+  let zoom = 7
+  
+  if (selectedFacility) {
+    center = [Number(selectedFacility.latitude), Number(selectedFacility.longitude)]
+    zoom = 12
+  } else if (facilities.length > 0) {
+    // Center on facilities if available
+    const avgLat = facilities.reduce((sum, f) => sum + Number(f.latitude), 0) / facilities.length
+    const avgLng = facilities.reduce((sum, f) => sum + Number(f.longitude), 0) / facilities.length
+    center = [avgLat, avgLng]
+    zoom = 8
+  }
 
   return (
-    <div className="w-full flex items-center justify-center bg-background py-8">
-      <div className="w-full max-w-7xl px-4">
-        <Map
-          center={center}
-          zoom={zoom}
-          width={1200}
-          height={700}
-          boxClassname="rounded-2xl shadow-2xl border border-border bg-[#18181b]"
-          defaultCenter={center}
-          defaultZoom={zoom}
-        >
-          {facilities.map((facility) => (
-            <Marker
-              key={facility.id}
-              width={40}
-              anchor={[facility.latitude, facility.longitude]}
-              onClick={() => onFacilitySelect(facility)}
-              color={facility.totalReleases > 2000 ? '#ef4444' : facility.totalReleases > 1000 ? '#f59e0b' : '#10b981'}
-            />
-          ))}
-          {selectedFacility && (
-            <Overlay anchor={[selectedFacility.latitude, selectedFacility.longitude]} offset={[120, 79]}>
-              <div className="bg-white p-4 rounded-xl shadow-2xl border border-primary w-72 animate-fade-in">
-                <div className="font-bold text-lg text-primary mb-1 flex items-center gap-2">
-                  <FactoryIcon className="inline w-5 h-5 text-accent" />
-                  {selectedFacility.facilityName}
-                </div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  {selectedFacility.city}, {selectedFacility.state} • {selectedFacility.zipCode}
-                </div>
-                <div className="mb-2">
-                  <span className="font-semibold text-sm">Total Releases:</span>
-                  <span className="ml-2 text-sm text-foreground">{selectedFacility.totalReleases.toLocaleString()} lbs</span>
-                </div>
-                <div className="mb-2">
-                  <span className="font-semibold text-sm">Top Chemicals:</span>
-                  <ul className="ml-4 list-disc text-xs text-foreground">
-                    {selectedFacility.topChemicals?.map((chem) => (
-                      <li key={chem.name}>{chem.name} ({chem.amount.toLocaleString()} {chem.unit})</li>
-                    ))}
-                  </ul>
-                </div>
-                <button
-                  className="mt-2 px-3 py-1 rounded bg-primary text-white text-xs hover:bg-primary/90 transition-colors"
-                  onClick={() => onFacilitySelect(undefined as any)}
-                >
-                  Close
-                </button>
-              </div>
-            </Overlay>
-          )}
-        </Map>
-      </div>
+    <div className="w-full h-full relative">
+      <Map
+        center={center}
+        zoom={zoom}
+        width={800}
+        height={600}
+        dprs={[1, 2]}
+        animate={true}
+      >
+        {facilities.map((facility) => (
+          <Marker
+            key={facility.id}
+            width={40}
+            anchor={[Number(facility.latitude), Number(facility.longitude)]}
+            onClick={() => onFacilitySelect(facility)}
+            color={facility.totalReleases > 2000 ? '#ef4444' : facility.totalReleases > 1000 ? '#f59e0b' : '#10b981'}
+          />
+        ))}
+      </Map>
     </div>
   )
 }

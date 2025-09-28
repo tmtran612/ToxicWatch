@@ -6,28 +6,65 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MapView } from "@/components/map-view"
 import { FacilityPopup } from "@/components/facility-popup"
-import type { FacilityWithReleases } from "@/lib/types"
+import { FacilityDetailsSheet } from "@/components/facility-details-sheet"
+import type { FacilityWithReleases, ProcessedFacility } from "@/lib/types"
 
 export default function MapPage() {
   const [facilities, setFacilities] = useState<FacilityWithReleases[]>([])
-  const [selectedFacility, setSelectedFacility] = useState<FacilityWithReleases | null>(null)
+  const [selectedFacility, setSelectedFacility] = useState<ProcessedFacility | null>(null)
+  const [popupFacility, setPopupFacility] = useState<FacilityWithReleases | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedYear, setSelectedYear] = useState("2023")
+  const [apiReportingYear, setApiReportingYear] = useState<string | null>(null)
+  const [selectedYear, setSelectedYear] = useState("all")
   const [selectedChemical, setSelectedChemical] = useState("all")
   const [riskFilter, setRiskFilter] = useState("all")
 
   useEffect(() => {
-    loadFacilities()
+    loadFacilities({ state: "VA" })
   }, [])
 
-  const loadFacilities = async () => {
+  const handleViewDetails = async (facilityId: string) => {
     try {
-      // Load sample data for Virginia area
-      const response = await fetch("/api/facilities?state=VA")
+      const res = await fetch(`/api/facilities/${facilityId}`)
+      const jsonResponse = await res.json()
+      if (jsonResponse.success) {
+        setSelectedFacility(jsonResponse.data)
+      } else {
+        console.error("Failed to fetch facility details:", jsonResponse.error)
+        setSelectedFacility(null)
+      }
+    } catch (error) {
+      console.error("Error fetching facility details:", error)
+      setSelectedFacility(null)
+    }
+  }
+
+  const loadFacilities = async (params: { state?: string; zipCode?: string; county?: string }) => {
+    setLoading(true)
+    setSelectedFacility(null) // Reset selection on new search
+    setPopupFacility(null)
+    try {
+      const searchParams = new URLSearchParams()
+      if (params.state) searchParams.append("state", params.state)
+      if (params.zipCode) searchParams.append("zipCode", params.zipCode)
+      if (params.county) searchParams.append("county", params.county)
+      
+      // Always fetch a reasonable number of facilities
+      searchParams.append("limit", "5000")
+      searchParams.append("includeReleaseData", "true")
+
+      const response = await fetch(`/api/facilities?${searchParams.toString()}`)
       const result = await response.json()
 
       if (result.success) {
+        console.log("Facilities loaded in page.tsx:", result.data)
         setFacilities(result.data)
+        if (result.metadata?.selectedReportingYear) {
+          const year = result.metadata.selectedReportingYear.toString()
+          setApiReportingYear(year)
+          // Don't auto-select the year - keep it as "all" to show all facilities
+          // setSelectedYear(year)
+        }
       }
     } catch (error) {
       console.error("Error loading facilities:", error)
@@ -37,9 +74,12 @@ export default function MapPage() {
   }
 
   const filteredFacilities = facilities.filter((facility) => {
-    if (!facility.reportingYear) return false // skip if missing year
-    if (selectedYear !== "all" && facility.reportingYear?.toString() !== selectedYear) {
-      return false
+    // When release data is not loaded, reportingYear will be null.
+    // We should still show the facility on the map in this case.
+    if (facility.reportingYear) {
+      if (selectedYear !== "all" && facility.reportingYear?.toString() !== selectedYear) {
+        return false
+      }
     }
 
     if (selectedChemical !== "all") {
@@ -56,6 +96,8 @@ export default function MapPage() {
   })
 
   const uniqueChemicals = Array.from(new Set(facilities.flatMap((f) => f.releases.map((r) => r.chemicalName)))).sort()
+  const totalFacilities = filteredFacilities.length
+  const totalReleases = filteredFacilities.reduce((acc, f) => acc + (f.totalReleases || 0), 0)
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,15 +161,18 @@ export default function MapPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Reporting Year</label>
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <Select value={selectedYear} onValueChange={setSelectedYear} disabled={!apiReportingYear}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Years</SelectItem>
-                      <SelectItem value="2023">2023</SelectItem>
-                      <SelectItem value="2022">2022</SelectItem>
-                      <SelectItem value="2021">2021</SelectItem>
+                      {apiReportingYear ? (
+                        <SelectItem value={apiReportingYear}>{apiReportingYear}</SelectItem>
+                      ) : (
+                        <SelectItem value="all" disabled>
+                          N/A
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -202,7 +247,7 @@ export default function MapPage() {
                       <div
                         key={facility.id}
                         className="p-3 rounded-lg bg-card border border-border hover:border-primary/50 cursor-pointer transition-colors"
-                        onClick={() => setSelectedFacility(facility)}
+                        onClick={() => setPopupFacility(facility)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -229,15 +274,30 @@ export default function MapPage() {
         <div className="flex-1 relative">
           <MapView
             facilities={filteredFacilities}
-            selectedFacility={selectedFacility}
-            onFacilitySelect={setSelectedFacility}
+            selectedFacility={popupFacility}
+            onFacilitySelect={setPopupFacility}
             loading={loading}
           />
 
           {/* Facility Popup */}
-          {selectedFacility && <FacilityPopup facility={selectedFacility} onClose={() => setSelectedFacility(null)} />}
+          {popupFacility && (
+            <FacilityPopup 
+              facility={popupFacility} 
+              onClose={() => setPopupFacility(null)}
+              onViewDetails={() => handleViewDetails(popupFacility.id)}
+            />
+          )}
         </div>
       </div>
+      
+      <FacilityDetailsSheet
+        facility={selectedFacility}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedFacility(null)
+          }
+        }}
+      />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { MapPinIcon, FactoryIcon, AlertTriangleIcon, ChevronRightIcon } from "lucide-react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -83,12 +84,15 @@ export function FacilityCard({ facility }: FacilityCardProps) {
               }}
             />
             <Button
+              asChild
               variant="outline"
               size="sm"
               className="text-primary border-primary/20 hover:bg-primary/10 bg-transparent"
             >
-              View Details
-              <ChevronRightIcon className="h-4 w-4 ml-1" />
+              <Link href={`/facilities/${facility.id}`}>
+                View Details
+                <ChevronRightIcon className="h-4 w-4 ml-1" />
+              </Link>
             </Button>
           </div>
         </div>
