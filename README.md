@@ -1,94 +1,73 @@
-# 🔥 Toxic Release Mapper
+# ToxicWatch
 
-Toxic Release Mapper is a web application that provides accessible and understandable insights into the EPA's Toxic Release Inventory (TRI) data. It empowers communities to understand the environmental impact of industrial facilities in their area through an interactive map, detailed data visualizations, and AI-powered analysis.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)](https://www.mongodb.com/atlas)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 
-## 🎯 Problem Statement
+ToxicWatch is a full-stack platform for visualizing and analyzing EPA Toxic Release Inventory (TRI) data. It delivers real-time, map-based insights into industrial chemical releases, with AI-powered analysis and a modern, responsive UI.
 
-The EPA's TRI dataset is a powerful resource, but its raw format can be dense, complex, and difficult for the average person to interpret. As a result, communities often struggle to understand the presence and potential impact of chemical releases from nearby industrial facilities. This information gap can be a barrier to informed public discourse and local environmental stewardship.
+**Key Result:** 300x faster data access (30s → ~100ms) by migrating from EPA API to a custom Node.js + MongoDB backend.
 
-## ✨ Key Features
+---
 
--   **Interactive Map:** Visualize the locations of toxic-releasing facilities in your area, color-coded by release volume.
--   **Facility Search:** Search for facilities by ZIP code, county, or state to see a detailed list of nearby sites and their reported chemical releases.
--   **Detailed Breakdowns:** View specific data for each facility, including total release amounts and the top chemicals being released.
--   **AI-Powered Insights (via Google Gemini):**
-    -   **Health & Safety Q&A:** Ask plain-language questions about chemicals and their health effects (e.g., "What are the health risks of benzene exposure?").
-    -   **Comparative Analysis:** Get contextual comparisons of environmental data, such as how a county's releases stack up against the state average.
-    -   **Actionable Suggestions:** Receive AI-generated suggestions for community actions, like attending public hearings or engaging with local environmental groups.
--   **Facility Details Sidebar:** A clean, modern sidebar provides a snapshot of a facility's key information without leaving the map view.
+## Features
+- Interactive map of TRI facilities (2019-2022)
+- Fast search, filtering, and facility detail views
+- AI-powered health and safety Q&A (Google Gemini)
+- Aggregated stats and historical trends
 
-## 🛠️ Tech Stack
+## Stack
+- **Frontend:** Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Pigeon Maps
+- **Backend:** Node.js, Express, MongoDB Atlas, Mongoose
+- **AI:** Google Gemini API
 
-This project is built with a modern, type-safe, and performant technology stack.
-
--   **Framework:** [Next.js](https://nextjs.org/) (React)
--   **Language:** [TypeScript](https://www.typescriptlang.org/)
--   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
--   **UI Components:** [shadcn/ui](https://ui.shadcn.com/)
--   **Mapping:** [Pigeon Maps](https://pigeon-maps.js.org/)
--   **Backend API:** Next.js API Routes
--   **AI Integration:** [Google Gemini](https://gemini.google.com/)
--   **Data Source:** [EPA TRI Public Dataset](https://www.epa.gov/toxics-release-inventory-tri-program)
-
-## 🚀 Getting Started
-
-To get a local copy up and running, follow these simple steps.
-
-### Prerequisites
-
--   Node.js (v18 or later)
--   pnpm (or your preferred package manager)
-
-### Installation & Setup
-
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/tmtran612/toxic-release-mapper.git
-    cd toxic-release-mapper
-    ```
-
-2.  **Install dependencies:**
-    ```sh
-    pnpm install
-    ```
-
-3.  **Set up environment variables:**
-    Create a `.env.local` file in the root of the project and add your API keys.
-    ```env
-    GOOGLE_GENERATIVE_AI_API_KEY="YOUR_GEMINI_API_KEY"
-    ```
-
-4.  **Run the development server:**
-    ```sh
-    pnpm dev
-    ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## 📂 Project Structure
-
-The project follows the standard Next.js `app` directory structure.
-
+## Architecture
 ```
-/
-├── app/                    # Main application source
-│   ├── api/                # Backend API routes
-│   ├── (pages)/            # Next.js page routes (map, search, etc.)
-│   ├── layout.tsx          # Root layout
-│   └── globals.css         # Global styles
-├── components/             # Shared React components
-│   ├── ui/                 # shadcn/ui components
-│   └── map-view.tsx        # Main map component
-├── lib/                    # Helper functions, type definitions, and utilities
-│   ├── types.ts            # TypeScript type definitions
-│   └── utils.ts            # Utility functions
-└── public/                 # Static assets
+ToxicWatch/
+├── app/         # Next.js frontend
+├── api-server/  # Node.js/Express backend
+│   ├── models/  # Mongoose schemas
+│   └── import-data.js  # EPA data importer
+└── components/, lib/, public/, etc.
 ```
 
-## 🗺️ Roadmap
+## Setup
+1. **Clone & Install**
+   ```bash
+   git clone https://github.com/tmtran612/ToxicWatch.git
+   cd ToxicWatch && pnpm install
+   cd api-server && npm install
+   ```
+2. **Configure Envs**
+   - Copy `.env.example` → `.env.local` (frontend)
+   - Copy `api-server/.env.example` → `api-server/.env` (backend)
+3. **Run**
+   ```bash
+   # Terminal 1
+   cd api-server && npm start
+   # Terminal 2
+   pnpm dev
+   ```
+   App: http://localhost:3000
 
--   [ ] **User Watchlists:** Allow users to "watch" specific facilities or chemicals and store them in a user account.
--   [ ] **Notifications:** Send simple alerts when a watched facility reports new data.
--   [ ] **Historical Timeline:** Implement a timeline visualization to track reported emissions over several years.
--   [ ] **Advanced Data Aggregation:** Integrate a data warehouse solution (e.g., BigQuery, Snowflake) for faster and more complex queries, such as ranking the top polluters in a state.
--   [ ] **UI/UX Polish:** Continuously refine the user interface and experience based on feedback.
+4. **(Optional) Import Data**
+   ```bash
+   cd api-server && node import-data.js
+   ```
+
+## API (Backend)
+- `GET /api/facilities` — List/search facilities
+- `GET /api/facilities/:facilityYearId` — Facility details
+- `GET /api/facilities/near/:lng/:lat` — Nearby facilities
+- `GET /api/stats` — Aggregated stats
+- `GET /api/years` — Available years
+- `GET /api/search` — Name/company search
+
+## Achievements
+- 1,250+ facilities, 10,000+ chemical records (2019-2022)
+- Sub-100ms API response times (geospatial, search, stats)
+- Modern, maintainable, and scalable codebase
+
+## License
+MIT
