@@ -9,31 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FacilityCard } from "@/components/facility-card"
 import { SearchFilters } from "@/components/search-filters"
-import type { FacilityWithReleases, ProcessedFacility } from "@/lib/types"
-import { FacilityDetailsSheet } from "@/components/facility-details-sheet"
+import type { FacilityWithReleases } from "@/lib/types"
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [facilities, setFacilities] = useState<FacilityWithReleases[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [selectedFacility, setSelectedFacility] = useState<ProcessedFacility | null>(null)
-
-  const handleViewDetails = async (facilityId: string) => {
-    try {
-      const res = await fetch(`/api/facilities/${facilityId}`)
-      const jsonResponse = await res.json()
-      if (jsonResponse.success) {
-        setSelectedFacility(jsonResponse.data)
-      } else {
-        console.error("Failed to fetch facility details:", jsonResponse.error)
-        setSelectedFacility(null)
-      }
-    } catch (error) {
-      console.error("Error fetching facility details:", error)
-      setSelectedFacility(null)
-    }
-  }
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -185,12 +167,7 @@ export default function SearchPage() {
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-foreground">Facilities in your area</h3>
                 {facilities.map((facility) => (
-                  <div
-                    key={facility.id}
-                    className="cursor-pointer"
-                  >
-                    <FacilityCard facility={facility} onViewDetails={() => handleViewDetails(facility.id)} />
-                  </div>
+                  <FacilityCard key={facility.id} facility={facility} />
                 ))}
               </div>
             )}
@@ -238,14 +215,6 @@ export default function SearchPage() {
           </div>
         )}
       </div>
-      <FacilityDetailsSheet
-        facility={selectedFacility}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setSelectedFacility(null)
-          }
-        }}
-      />
     </div>
   )
 }
