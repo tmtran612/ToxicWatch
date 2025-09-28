@@ -7,11 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MapView } from "@/components/map-view"
 import { FacilityPopup } from "@/components/facility-popup"
 import { FacilityDetailsSheet } from "@/components/facility-details-sheet"
-import type { FacilityWithReleases, ProcessedFacility } from "@/lib/types"
+import type { FacilityWithReleases } from "@/lib/types"
 
 export default function MapPage() {
   const [facilities, setFacilities] = useState<FacilityWithReleases[]>([])
-  const [selectedFacility, setSelectedFacility] = useState<ProcessedFacility | null>(null)
+  const [selectedFacility, setSelectedFacility] = useState<FacilityWithReleases | null>(null)
   const [popupFacility, setPopupFacility] = useState<FacilityWithReleases | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiReportingYear, setApiReportingYear] = useState<string | null>(null)

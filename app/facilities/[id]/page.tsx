@@ -1,4 +1,3 @@
-
 import { notFound } from "next/navigation"
 import {
   Card,
@@ -17,11 +16,11 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ProcessedFacility } from "@/lib/types"
+import { FacilityWithReleases } from "@/lib/types"
 import { MapView } from "@/components/map-view"
 import { formatNumber } from "@/lib/utils"
 
-async function getFacilityData(id: string): Promise<ProcessedFacility | null> {
+async function getFacilityData(id: string): Promise<FacilityWithReleases | null> {
   try {
     // Use the internal fetch for server-side components, assuming the app is running on localhost:3000
     const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/facilities/${id}`, {
