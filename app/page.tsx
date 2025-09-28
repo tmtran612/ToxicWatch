@@ -30,12 +30,6 @@ export default function HomePage() {
               <Link href="/ai-assistant" className="text-muted-foreground hover:text-foreground transition-colors">
                 AI Assistant
               </Link>
-              <Link href="/watchlist" className="text-muted-foreground hover:text-foreground transition-colors">
-                Watchlist
-              </Link>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                About
-              </a>
             </nav>
           </div>
         </div>
@@ -136,22 +130,6 @@ export default function HomePage() {
                 </p>
               </CardContent>
             </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-lg bg-chart-4/10 flex items-center justify-center mb-4">
-                  <BookmarkIcon className="h-6 w-6 text-chart-4" />
-                </div>
-                <CardTitle>Personal Watchlist</CardTitle>
-                <CardDescription>Track facilities and locations you care about</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Save facilities, locations, and chemicals to your personal watchlist and get notified of changes in
-                  toxic releases.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
@@ -178,11 +156,6 @@ export default function HomePage() {
             <Link href="/ai-assistant">
               <Button variant="outline" size="lg" className="px-8 py-3 bg-transparent">
                 Ask AI Assistant
-              </Button>
-            </Link>
-            <Link href="/watchlist">
-              <Button variant="outline" size="lg" className="px-8 py-3 bg-transparent">
-                My Watchlist
               </Button>
             </Link>
           </div>
