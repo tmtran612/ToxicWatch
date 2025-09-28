@@ -7,7 +7,8 @@ const QueryParamsSchema = z.object({
   zipCode: z.string().min(5).optional(),
   county: z.string().min(3).optional(),
   limit: z.coerce.number().min(1).max(5000).default(1000),
-  includeReleaseData: z.coerce.boolean().default(true)
+  includeReleaseData: z.coerce.boolean().default(true),
+  fetchAllYears: z.coerce.boolean().default(false)
 })
 
 // EPA Envirofacts API data structure for a facility
@@ -274,8 +275,11 @@ const processFacilityData = (facility: EPAFacility, releases: EPARelease[]): Pro
 
   const reportingYear = releases.length > 0 ? parseInt(releases[0].reporting_year, 10) : (facility.reporting_year ? parseInt(facility.reporting_year, 10) : null)
   
+  // Create unique ID for facility-year combination
+  const uniqueId = reportingYear ? `${facility.tri_facility_id}_${reportingYear}` : facility.tri_facility_id
+  
   return {
-    id: facility.tri_facility_id,
+    id: uniqueId,
     facilityName: facility.facility_name,
     address: facility.street_address,
     city: facility.city_name,
@@ -312,7 +316,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       zipCode: searchParams.get("zipCode") ?? undefined,
       county: searchParams.get("county") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
-      includeReleaseData: searchParams.get("includeReleaseData") ?? undefined
+      includeReleaseData: searchParams.get("includeReleaseData") ?? undefined,
+      fetchAllYears: searchParams.get("fetchAllYears") ?? undefined
     })
   } catch (error) {
     return NextResponse.json(
@@ -402,117 +407,219 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let selectedReportingYear: string | null = null
 
     if (queryParams.includeReleaseData) {
-      // Fetch releases for the same filter and the most recent year with data
-      let allReleases: EPARelease[] = []
+      if (queryParams.fetchAllYears) {
+        // SLOW PATH: Fetch all years and find the latest for each facility
+        console.log("[Facilities API] Fetching all years for each facility.")
+        const allYearsReleases: EPARelease[] = []
 
-      for (const year of REPORTING_YEARS) {
-        try {
-          // Step 1: Get reporting form data with facility IDs for the same filter
-          let reportingUrl: string
-          if (filterKind === 'zip' && zip) {
-            reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/zip_code/equals/${encodeURIComponent(zip)}/and/reporting_year/equals/${year}`
-          } else if (filterKind === 'county' && county && state) {
-            reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/county_name/equals/${encodeURIComponent(county)}/and/state_abbr/equals/${encodeURIComponent(state)}/and/reporting_year/equals/${year}`
-          } else {
-            // state filter - need to join with tri_facility to get state info
-            reportingUrl = `${EPA_BASE_URL}/tri.tri_facility/state_abbr/equals/${encodeURIComponent(state!)}/join/tri.tri_reporting_form/tri_facility_id/equals/tri_facility_id/and/reporting_year/equals/${year}`
-          }
+        for (const year of REPORTING_YEARS) {
+          try {
+            // ... (Fetching logic remains the same for each year)
+            let reportingUrl: string
+            if (filterKind === 'zip' && zip) {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/zip_code/equals/${encodeURIComponent(zip)}/and/reporting_year/equals/${year}`
+            } else if (filterKind === 'county' && county && state) {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/county_name/equals/${encodeURIComponent(county)}/and/state_abbr/equals/${encodeURIComponent(state)}/and/reporting_year/equals/${year}`
+            } else {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_facility/state_abbr/equals/${encodeURIComponent(state!)}/join/tri.tri_reporting_form/tri_facility_id/equals/tri_facility_id/and/reporting_year/equals/${year}`
+            }
+            reportingUrl += '/1:10000'
 
-          reportingUrl += '/1:10000' // High limit for reporting forms
+            console.log(`[Facilities API] Fetching reporting forms for ${year}: ${reportingUrl.substring(0, 200)}...`)
+            const reportingResponse = await fetchWithRetry(reportingUrl, 2, 30000)
 
-          console.log(`[Facilities API] Fetching reporting forms for ${year}: ${reportingUrl.substring(0, 200)}...`)
-          const reportingResponse = await fetchWithRetry(reportingUrl, 2, 30000)
-          
-          if (reportingResponse.ok) {
-            const reportingData = await reportingResponse.json()
-            if (Array.isArray(reportingData) && reportingData.length > 0) {
-              
-              // Step 2: Get Form R release data for these doc_ctrl_nums
-              const docCtrlNums = reportingData.map(r => r.doc_ctrl_num).slice(0, 1000) // Limit for URL length
-              const formRPromises = []
-              
-              // Batch doc_ctrl_nums to avoid URL length limits
-              const batchSize = 50
-              for (let i = 0; i < docCtrlNums.length; i += batchSize) {
-                const batch = docCtrlNums.slice(i, i + batchSize)
-                const formRUrl = `${EPA_BASE_URL}/tri.tri_form_r/doc_ctrl_num/in/${batch.join(',')}`
-                formRPromises.push(fetchWithRetry(formRUrl, 2, 30000))
-              }
-              
-              const formRResponses = await Promise.all(formRPromises)
-              const allFormRData: any[] = []
-              
-              for (const response of formRResponses) {
-                if (response.ok) {
-                  const data = await response.json()
-                  if (Array.isArray(data)) {
-                    allFormRData.push(...data)
+            if (reportingResponse.ok) {
+              const reportingData = await reportingResponse.json()
+              if (Array.isArray(reportingData) && reportingData.length > 0) {
+                const docCtrlNums = reportingData.map(r => r.doc_ctrl_num)
+                const formRPromises = []
+                const batchSize = 50
+                for (let i = 0; i < docCtrlNums.length; i += batchSize) {
+                  const batch = docCtrlNums.slice(i, i + batchSize)
+                  const formRUrl = `${EPA_BASE_URL}/tri.tri_form_r/doc_ctrl_num/in/${batch.join(',')}`
+                  formRPromises.push(fetchWithRetry(formRUrl, 2, 30000))
+                }
+
+                const formRResponses = await Promise.all(formRPromises)
+                const allFormRData: any[] = []
+                for (const response of formRResponses) {
+                  if (response.ok) {
+                    const data = await response.json()
+                    if (Array.isArray(data)) allFormRData.push(...data)
                   }
                 }
+
+                console.log(`[Facilities API] Found ${allFormRData.length} Form R release records for ${year}`)
+
+                if (allFormRData.length > 0) {
+                  const formRByDocCtrl = new Map()
+                  allFormRData.forEach(formR => formRByDocCtrl.set(formR.doc_ctrl_num, formR))
+
+                  const yearReleases = reportingData
+                    .filter(reporting => formRByDocCtrl.has(reporting.doc_ctrl_num))
+                    .map(reporting => {
+                      const formR = formRByDocCtrl.get(reporting.doc_ctrl_num)
+                      const airTotal = (formR.air_total_release || 0)
+                      const waterTotal = (formR.water_total_release || 0)
+                      const landTotal = (formR.land_total_release || 0)
+                      const totalReleases = airTotal + waterTotal + landTotal + (formR.uninj_total_release || 0)
+                      return {
+                        tri_facility_id: reporting.tri_facility_id,
+                        reporting_year: year,
+                        doc_ctrl_num: reporting.doc_ctrl_num,
+                        chemical: reporting.cas_chem_name || 'Mixed Chemicals',
+                        total_air_emissions: airTotal,
+                        total_releases: totalReleases
+                      }
+                    })
+                  
+                  if (!selectedReportingYear) selectedReportingYear = year
+                  allYearsReleases.push(...yearReleases)
+                  console.log(`[Facilities API] Successfully joined ${yearReleases.length} release records for ${year}`)
+                }
               }
-              
-              console.log(`[Facilities API] Found ${allFormRData.length} Form R release records for ${year}`)
-              
-              if (allFormRData.length > 0) {
-                // Create a map of doc_ctrl_num -> form R data
-                const formRByDocCtrl = new Map()
-                allFormRData.forEach(formR => {
-                  formRByDocCtrl.set(formR.doc_ctrl_num, formR)
-                })
-                
-                // Join reporting data with Form R data
-                allReleases = reportingData
-                  .filter(reporting => formRByDocCtrl.has(reporting.doc_ctrl_num))
-                  .map(reporting => {
-                    const formR = formRByDocCtrl.get(reporting.doc_ctrl_num)
-                    const airTotal = (formR.air_total_release || 0)
-                    const waterTotal = (formR.water_total_release || 0)
-                    const landTotal = (formR.land_total_release || 0)
-                    const totalReleases = airTotal + waterTotal + landTotal + (formR.uninj_total_release || 0)
-                    
-                    return {
-                      tri_facility_id: reporting.tri_facility_id,
-                      reporting_year: year,
-                      doc_ctrl_num: reporting.doc_ctrl_num,
-                      chemical: reporting.cas_chem_name || 'Mixed Chemicals',
-                      total_air_emissions: airTotal,
-                      total_releases: totalReleases
-                    }
-                  })
-                
-                selectedReportingYear = year
-                console.log(`[Facilities API] Successfully joined ${allReleases.length} release records for ${year}`)
-                break
-              }
+            } else {
+              console.warn(`[Facilities API] EPA API returned ${reportingResponse.status} for reporting forms in ${year}.`)
             }
-          } else {
-            console.warn(`[Facilities API] EPA API returned ${reportingResponse.status} for reporting forms in ${year}.`)
+          } catch (error) {
+            console.warn(`[Facilities API] Could not fetch releases for year ${year}.`, error)
           }
-        } catch (error) {
-          console.warn(`[Facilities API] Could not fetch releases for year ${year}. Trying previous year.`, error)
         }
-      }
 
-      // If we couldn't get release data, continue with facilities only (graceful degradation)
-      if (allReleases.length === 0) {
-        console.warn(`[Facilities API] No release data found for any year. Continuing with facilities only.`)
-        processedFacilities = validFacilities.map(facility => processFacilityData(facility, []))
+        if (allYearsReleases.length === 0) {
+          processedFacilities = validFacilities.map(facility => processFacilityData(facility, []))
+        } else {
+          const releasesByFacilityId = new Map<string, EPARelease[]>()
+          for (const release of allYearsReleases) {
+            if (!releasesByFacilityId.has(release.tri_facility_id)) {
+              releasesByFacilityId.set(release.tri_facility_id, [])
+            }
+            releasesByFacilityId.get(release.tri_facility_id)!.push(release)
+          }
+
+          processedFacilities = validFacilities.map(facility => {
+            const facilityReleases = releasesByFacilityId.get(facility.tri_facility_id) || []
+            
+            // Group releases by year
+            const releasesByYear = new Map<string, EPARelease[]>()
+            facilityReleases.forEach(release => {
+              if (!releasesByYear.has(release.reporting_year)) {
+                releasesByYear.set(release.reporting_year, [])
+              }
+              releasesByYear.get(release.reporting_year)!.push(release)
+            })
+
+            // Create facility records for each year that has data
+            const facilityRecords: ProcessedFacility[] = []
+            
+            if (releasesByYear.size > 0) {
+              // Create a record for each year with data
+              releasesByYear.forEach((yearReleases, year) => {
+                facilityRecords.push(processFacilityData(facility, yearReleases))
+              })
+            } else {
+              // No releases data - create one record with null reporting year
+              facilityRecords.push(processFacilityData(facility, []))
+            }
+            
+            return facilityRecords
+          }).flat()
+        }
       } else {
-        // Map releases to facilities
-        const releasesByFacilityId = new Map<string, EPARelease[]>()
-        for (const release of allReleases) {
-          if (!releasesByFacilityId.has(release.tri_facility_id)) {
-            releasesByFacilityId.set(release.tri_facility_id, [])
+        // FAST PATH: Find the most recent year with any data and use that.
+        console.log("[Facilities API] Fetching most recent year with data.")
+        let allReleases: EPARelease[] = []
+
+        for (const year of REPORTING_YEARS) {
+          try {
+            let reportingUrl: string
+            if (filterKind === 'zip' && zip) {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/zip_code/equals/${encodeURIComponent(zip)}/and/reporting_year/equals/${year}`
+            } else if (filterKind === 'county' && county && state) {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_reporting_form/county_name/equals/${encodeURIComponent(county)}/and/state_abbr/equals/${encodeURIComponent(state)}/and/reporting_year/equals/${year}`
+            } else {
+              reportingUrl = `${EPA_BASE_URL}/tri.tri_facility/state_abbr/equals/${encodeURIComponent(state!)}/join/tri.tri_reporting_form/tri_facility_id/equals/tri_facility_id/and/reporting_year/equals/${year}`
+            }
+            reportingUrl += '/1:10000'
+
+            console.log(`[Facilities API] Fetching reporting forms for ${year}: ${reportingUrl.substring(0, 200)}...`)
+            const reportingResponse = await fetchWithRetry(reportingUrl, 2, 30000)
+            
+            if (reportingResponse.ok) {
+              const reportingData = await reportingResponse.json()
+              if (Array.isArray(reportingData) && reportingData.length > 0) {
+                const docCtrlNums = reportingData.map(r => r.doc_ctrl_num)
+                const formRPromises = []
+                const batchSize = 50
+                for (let i = 0; i < docCtrlNums.length; i += batchSize) {
+                  const batch = docCtrlNums.slice(i, i + batchSize)
+                  const formRUrl = `${EPA_BASE_URL}/tri.tri_form_r/doc_ctrl_num/in/${batch.join(',')}`
+                  formRPromises.push(fetchWithRetry(formRUrl, 2, 30000))
+                }
+                
+                const formRResponses = await Promise.all(formRPromises)
+                const allFormRData: any[] = []
+                for (const response of formRResponses) {
+                  if (response.ok) {
+                    const data = await response.json()
+                    if (Array.isArray(data)) allFormRData.push(...data)
+                  }
+                }
+                
+                console.log(`[Facilities API] Found ${allFormRData.length} Form R release records for ${year}`)
+                
+                if (allFormRData.length > 0) {
+                  const formRByDocCtrl = new Map()
+                  allFormRData.forEach(formR => formRByDocCtrl.set(formR.doc_ctrl_num, formR))
+                  
+                  allReleases = reportingData
+                    .filter(reporting => formRByDocCtrl.has(reporting.doc_ctrl_num))
+                    .map(reporting => {
+                      const formR = formRByDocCtrl.get(reporting.doc_ctrl_num)
+                      const airTotal = (formR.air_total_release || 0)
+                      const waterTotal = (formR.water_total_release || 0)
+                      const landTotal = (formR.land_total_release || 0)
+                      const totalReleases = airTotal + waterTotal + landTotal + (formR.uninj_total_release || 0)
+                      return {
+                        tri_facility_id: reporting.tri_facility_id,
+                        reporting_year: year,
+                        doc_ctrl_num: reporting.doc_ctrl_num,
+                        chemical: reporting.cas_chem_name || 'Mixed Chemicals',
+                        total_air_emissions: airTotal,
+                        total_releases: totalReleases
+                      }
+                    })
+                  
+                  selectedReportingYear = year
+                  console.log(`[Facilities API] Successfully joined ${allReleases.length} release records for ${year}`)
+                  break // Found data, so stop searching older years
+                }
+              }
+            } else {
+              console.warn(`[Facilities API] EPA API returned ${reportingResponse.status} for reporting forms in ${year}.`)
+            }
+          } catch (error) {
+            console.warn(`[Facilities API] Could not fetch releases for year ${year}. Trying previous year.`, error)
           }
-          releasesByFacilityId.get(release.tri_facility_id)!.push(release)
         }
 
-        processedFacilities = validFacilities.map(facility => {
-          const facilityReleases = releasesByFacilityId.get(facility.tri_facility_id) || []
-          return processFacilityData(facility, facilityReleases)
-        })
-      }
+        if (allReleases.length === 0) {
+          processedFacilities = validFacilities.map(facility => processFacilityData(facility, []))
+        } else {
+          const releasesByFacilityId = new Map<string, EPARelease[]>()
+          for (const release of allReleases) {
+            if (!releasesByFacilityId.has(release.tri_facility_id)) {
+              releasesByFacilityId.set(release.tri_facility_id, [])
+            }
+            releasesByFacilityId.get(release.tri_facility_id)!.push(release)
+          }
 
+          processedFacilities = validFacilities.map(facility => {
+            const facilityReleases = releasesByFacilityId.get(facility.tri_facility_id) || []
+            return processFacilityData(facility, facilityReleases)
+          })
+        }
+      }
     } else {
       // If not including release data, just process facilities without it
       processedFacilities = validFacilities.map(facility => processFacilityData(facility, []))

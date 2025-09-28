@@ -14,8 +14,7 @@ export default function MapPage() {
   const [selectedFacility, setSelectedFacility] = useState<FacilityWithReleases | null>(null)
   const [popupFacility, setPopupFacility] = useState<FacilityWithReleases | null>(null)
   const [loading, setLoading] = useState(true)
-  const [apiReportingYear, setApiReportingYear] = useState<string | null>(null)
-  const [selectedYear, setSelectedYear] = useState("all")
+  const [selectedYear, setSelectedYear] = useState("2022")
   const [selectedChemical, setSelectedChemical] = useState("all")
   const [riskFilter, setRiskFilter] = useState("all")
 
@@ -41,6 +40,7 @@ export default function MapPage() {
       // Always fetch a reasonable number of facilities
       searchParams.append("limit", "5000")
       searchParams.append("includeReleaseData", "true")
+      searchParams.append("fetchAllYears", "true")
 
       const response = await fetch(`/api/facilities?${searchParams.toString()}`)
       const result = await response.json()
@@ -48,12 +48,6 @@ export default function MapPage() {
       if (result.success) {
         console.log("Facilities loaded in page.tsx:", result.data)
         setFacilities(result.data)
-        if (result.metadata?.selectedReportingYear) {
-          const year = result.metadata.selectedReportingYear.toString()
-          setApiReportingYear(year)
-          // Don't auto-select the year - keep it as "all" to show all facilities
-          // setSelectedYear(year)
-        }
       }
     } catch (error) {
       console.error("Error loading facilities:", error)
@@ -63,14 +57,28 @@ export default function MapPage() {
   }
 
   const filteredFacilities = facilities.filter((facility) => {
-    // When release data is not loaded, reportingYear will be null.
-    // We should still show the facility on the map in this case.
+    // For sidebar display - apply all filters including year filter
     if (facility.reportingYear) {
       if (selectedYear !== "all" && facility.reportingYear?.toString() !== selectedYear) {
         return false
       }
     }
 
+    if (selectedChemical !== "all") {
+      const hasChemical = facility.releases.some((r) => r.chemicalName === selectedChemical)
+      if (!hasChemical) return false
+    }
+
+    if (riskFilter !== "all") {
+      const riskLevel = facility.totalReleases < 1000 ? "low" : facility.totalReleases < 5000 ? "moderate" : "high"
+      if (riskLevel !== riskFilter) return false
+    }
+
+    return true
+  })
+
+  // For map display - show all facilities, but apply chemical and risk filters only (not year filter)
+  const mapFacilities = facilities.filter((facility) => {
     if (selectedChemical !== "all") {
       const hasChemical = facility.releases.some((r) => r.chemicalName === selectedChemical)
       if (!hasChemical) return false
@@ -150,18 +158,16 @@ export default function MapPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Reporting Year</label>
-                  <Select value={selectedYear} onValueChange={setSelectedYear} disabled={!apiReportingYear}>
+                  <Select value={selectedYear} onValueChange={setSelectedYear} disabled={loading}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {apiReportingYear ? (
-                        <SelectItem value={apiReportingYear}>{apiReportingYear}</SelectItem>
-                      ) : (
-                        <SelectItem value="all" disabled>
-                          N/A
-                        </SelectItem>
-                      )}
+                      <SelectItem value="all">All Years</SelectItem>
+                      <SelectItem value="2022">2022</SelectItem>
+                      <SelectItem value="2021">2021</SelectItem>
+                      <SelectItem value="2020">2020</SelectItem>
+                      <SelectItem value="2019">2019</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -212,11 +218,15 @@ export default function MapPage() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                      <span className="text-xs text-muted-foreground">Moderate (1K-5K lbs)</span>
+                      <span className="text-xs text-muted-foreground">Moderate (1K-2K lbs)</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <span className="text-xs text-muted-foreground">High (&gt;5K lbs)</span>
+                      <span className="text-xs text-muted-foreground">High (&gt;2K lbs)</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-gray-500"></div>
+                      <span className="text-xs text-muted-foreground">No data for selected year</span>
                     </div>
                   </div>
                 </CardContent>
@@ -262,9 +272,10 @@ export default function MapPage() {
         {/* Map Container */}
         <div className="flex-1 relative">
           <MapView
-            facilities={filteredFacilities}
+            facilities={mapFacilities}
             onFacilitySelect={setPopupFacility}
             loading={loading}
+            selectedYear={selectedYear}
           />
 
           {/* Facility Popup */}

@@ -25,37 +25,39 @@ export function FacilityPopup({ facility, onClose, onViewDetails }: FacilityPopu
   return (
     <div className="absolute top-4 right-4 w-96 z-30">
       <Card className="bg-card border-border shadow-xl">
-        <CardHeader>
+        <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
-            <div className="flex-1">
+            <div className="flex-1 pr-4">
               <CardTitle className="flex items-center space-x-2 text-foreground">
                 <FactoryIcon className="h-5 w-5 text-primary" />
-                <span className="text-lg">{facility.facilityName}</span>
+                <span className="text-lg leading-tight">{facility.facilityName}</span>
               </CardTitle>
-              <CardDescription className="flex items-center space-x-1 mt-2">
-                <MapPinIcon className="h-4 w-4" />
+              <CardDescription className="flex items-center space-x-1.5 mt-2">
+                <MapPinIcon className="h-4 w-4 flex-shrink-0" />
                 <span>
-                  {facility.address}, {facility.city}, {facility.state} {facility.zipCode}
+                  {facility.city}, {facility.state} {facility.zipCode}
                 </span>
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center space-x-2 mt-3">
+          <div className="flex flex-wrap items-center gap-2 mt-4">
             <Badge className={riskColors[riskLevel]} variant="outline">
               {riskLevel} risk
             </Badge>
-            <Badge variant="secondary" className="text-xs">
-              {facility.industry}
-            </Badge>
+            {facility.naicsDescription && (
+              <Badge variant="secondary" className="text-xs font-normal">
+                {facility.naicsDescription}
+              </Badge>
+            )}
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="pt-0">
           {/* Key Stats */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-2 gap-4 my-4">
             <div className="text-center p-3 bg-muted/20 rounded-lg">
               <div className="text-xl font-bold text-primary">
                 {formatChemicalAmount(facility.totalReleases, "pounds")}
@@ -69,7 +71,7 @@ export function FacilityPopup({ facility, onClose, onViewDetails }: FacilityPopu
           </div>
 
           {/* Top Chemicals */}
-          {facility.topChemicals.length > 0 && (
+          {facility.topChemicals && facility.topChemicals.length > 0 && (
             <div className="mb-4">
               <h4 className="text-sm font-medium text-foreground mb-2">Top Chemical Releases</h4>
               <div className="space-y-2">
@@ -86,7 +88,7 @@ export function FacilityPopup({ facility, onClose, onViewDetails }: FacilityPopu
           )}
 
           {/* Additional Info */}
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-sm border-t border-border pt-4">
             {facility.parentCompany && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Parent Company:</span>
@@ -100,26 +102,23 @@ export function FacilityPopup({ facility, onClose, onViewDetails }: FacilityPopu
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Reporting Year:</span>
               <span className="text-foreground flex items-center">
-                <CalendarIcon className="h-3 w-3 mr-1" />
+                <CalendarIcon className="h-3 w-3 mr-1.5" />
                 {facility.reportingYear}
               </span>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex space-x-2 mt-4 pt-4 border-t border-border">
+          <div className="mt-4 pt-4 border-t border-border">
             {onViewDetails ? (
-              <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={onViewDetails}>
+              <Button variant="outline" size="sm" className="w-full" onClick={onViewDetails}>
                 View Details
               </Button>
             ) : (
-              <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
+              <Button asChild variant="outline" size="sm" className="w-full">
                 <Link href={`/facilities/${facility.id}`}>View Details</Link>
               </Button>
             )}
-            <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-              Health Info
-            </Button>
           </div>
         </CardContent>
       </Card>

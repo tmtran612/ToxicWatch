@@ -11,6 +11,7 @@ interface MapViewProps {
   center?: { lat: number; lng: number }
   zoom?: number
   interactive?: boolean
+  selectedYear?: string
 }
 
 // Virginia coordinates and bounds
@@ -29,6 +30,7 @@ export function MapView({
   center,
   zoom,
   interactive = true,
+  selectedYear,
 }: MapViewProps) {
   if (loading) {
     return (
@@ -72,15 +74,53 @@ export function MapView({
           mouseEvents={interactive}
           touchEvents={interactive}
         >
-          {facilities.map((facility) => (
-            <Marker
-              key={facility.id}
-              width={40}
-              anchor={[facility.latitude, facility.longitude]}
-              onClick={() => onFacilitySelect(facility)}
-              color={facility.totalReleases > 2000 ? '#ef4444' : facility.totalReleases > 1000 ? '#f59e0b' : '#10b981'}
-            />
-          ))}
+          {/* First render grey markers (no data) - they go in the back */}
+          {facilities
+            .filter((facility) => {
+              const hasDataForYear = selectedYear === "all" 
+                ? facility.totalReleases > 0 
+                : facility.reportingYear?.toString() === selectedYear && facility.totalReleases > 0
+              return !hasDataForYear
+            })
+            .map((facility) => (
+              <Marker
+                key={facility.id}
+                width={30}
+                anchor={[facility.latitude, facility.longitude]}
+                onClick={() => onFacilitySelect(facility)}
+                color="#6b7280"
+              />
+            ))}
+          
+          {/* Then render colored markers (with data) - they go on top */}
+          {facilities
+            .filter((facility) => {
+              const hasDataForYear = selectedYear === "all" 
+                ? facility.totalReleases > 0 
+                : facility.reportingYear?.toString() === selectedYear && facility.totalReleases > 0
+              return hasDataForYear
+            })
+            .map((facility) => {
+              // Determine marker color for facilities with data
+              let markerColor: string
+              if (facility.totalReleases > 2000) {
+                markerColor = '#ef4444' // Red for high releases
+              } else if (facility.totalReleases > 1000) {
+                markerColor = '#f59e0b' // Yellow for moderate releases
+              } else {
+                markerColor = '#10b981' // Green for low releases
+              }
+
+              return (
+                <Marker
+                  key={facility.id}
+                  width={40}
+                  anchor={[facility.latitude, facility.longitude]}
+                  onClick={() => onFacilitySelect(facility)}
+                  color={markerColor}
+                />
+              )
+            })}
         </Map>
       </div>
     </div>

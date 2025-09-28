@@ -50,6 +50,7 @@ export interface FacilityWithReleases extends TRIFacility {
   releases: Array<{
     id: string
     chemicalName: string
+    casNumber?: string
     totalAirEmissions: number
     totalReleases: number
     healthImpacts: never[]
