@@ -1,6 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { healthImpacts, sampleFacilities, sampleReleases } from "@/lib/sample-data"
+
+// 1. Initialize the Google Generative AI provider
+const google = createGoogleGenerativeAI({
+  // The API key will be read from the GOOGLE_API_KEY environment variable
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +49,7 @@ User question: ${message}
 Please provide a helpful, accurate response about chemical health impacts or toxic release data.`
 
     const { text } = await generateText({
-      model: "openai/gpt-4o-mini",
+      model: google("models/gemini-2.0-flash-001"),
       prompt: fullPrompt,
       maxTokens: 500,
     })
