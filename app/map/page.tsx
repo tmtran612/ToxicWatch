@@ -23,21 +23,10 @@ export default function MapPage() {
     loadFacilities({ state: "VA" })
   }, [])
 
-  const handleViewDetails = async (facilityId: string) => {
-    try {
-      const res = await fetch(`/api/facilities/${facilityId}`)
-      const jsonResponse = await res.json()
-      if (jsonResponse.success) {
-        setSelectedFacility(jsonResponse.data)
-      } else {
-        console.error("Failed to fetch facility details:", jsonResponse.error)
-        setSelectedFacility(null)
-      }
-    } catch (error) {
-      console.error("Error fetching facility details:", error)
-      setSelectedFacility(null)
-    }
-  }
+  const handleViewDetails = (facility: FacilityWithReleases) => {
+    setPopupFacility(null); // Close the popup
+    setSelectedFacility(facility); // Open the details sheet
+  };
 
   const loadFacilities = async (params: { state?: string; zipCode?: string; county?: string }) => {
     setLoading(true)
@@ -274,7 +263,6 @@ export default function MapPage() {
         <div className="flex-1 relative">
           <MapView
             facilities={filteredFacilities}
-            selectedFacility={popupFacility}
             onFacilitySelect={setPopupFacility}
             loading={loading}
           />
@@ -284,7 +272,7 @@ export default function MapPage() {
             <FacilityPopup 
               facility={popupFacility} 
               onClose={() => setPopupFacility(null)}
-              onViewDetails={() => handleViewDetails(popupFacility.id)}
+              onViewDetails={() => handleViewDetails(popupFacility)}
             />
           )}
         </div>

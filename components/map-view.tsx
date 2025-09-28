@@ -1,12 +1,11 @@
 "use client"
 
-import { Map, Marker, Overlay } from "pigeon-maps"
+import { Map, Marker } from "pigeon-maps"
 import { LoaderIcon, FactoryIcon } from "lucide-react"
 import type { FacilityWithReleases } from "@/lib/types"
 
 interface MapViewProps {
   facilities: FacilityWithReleases[]
-  selectedFacility?: FacilityWithReleases | null
   onFacilitySelect?: (facility: FacilityWithReleases | null) => void
   loading?: boolean
   center?: { lat: number; lng: number }
@@ -25,7 +24,6 @@ const VIRGINIA_BOUNDS = {
 
 export function MapView({
   facilities,
-  selectedFacility = null,
   onFacilitySelect = () => {},
   loading = false,
   center,
@@ -83,39 +81,6 @@ export function MapView({
               color={facility.totalReleases > 2000 ? '#ef4444' : facility.totalReleases > 1000 ? '#f59e0b' : '#10b981'}
             />
           ))}
-          {selectedFacility && (
-            <Overlay anchor={[selectedFacility.latitude, selectedFacility.longitude]} offset={[120, 79]}>
-              <div className="bg-white p-4 rounded-xl shadow-2xl border border-primary w-72 animate-fade-in">
-                <div className="font-bold text-lg text-primary mb-1 flex items-center gap-2">
-                  <FactoryIcon className="inline w-5 h-5 text-accent" />
-                  {selectedFacility.facilityName}
-                </div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  {selectedFacility.city}, {selectedFacility.state} • {selectedFacility.zipCode}
-                </div>
-                <div className="mb-2">
-                  <span className="font-semibold text-sm">Total Releases:</span>
-                  <span className="ml-2 text-sm text-foreground">{selectedFacility.totalReleases.toLocaleString()} lbs</span>
-                </div>
-                <div className="mb-2">
-                  <span className="font-semibold text-sm">Top Chemicals:</span>
-                  <ul className="ml-4 list-disc text-xs text-foreground">
-                    {selectedFacility.topChemicals?.map((chem) => (
-                      <li key={chem.name}>
-                        {chem.name} ({chem.amount.toLocaleString()} {chem.unit})
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <button
-                  className="mt-2 px-3 py-1 rounded bg-primary text-white text-xs hover:bg-primary/90 transition-colors"
-                  onClick={() => onFacilitySelect(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </Overlay>
-          )}
         </Map>
       </div>
     </div>

@@ -8,9 +8,10 @@ export interface TRIFacility {
   county: string
   latitude: number
   longitude: number
-  industry: string
   parentCompany?: string
-  reportingYear: number | null
+  reportingYear: number
+  naicsCode?: string
+  naicsDescription?: string
 }
 
 export interface ChemicalRelease {
@@ -59,12 +60,6 @@ export interface FacilityWithReleases extends TRIFacility {
     amount: number
     unit: string
   }>
-}
-
-export interface ProcessedFacility extends FacilityWithReleases {
-  // This can extend FacilityWithReleases if the detailed view has everything the card has, plus more.
-  // Or it can be a separate type if the structures are very different.
-  // For now, let's assume it's the same for simplicity, but you can add more fields.
 }
 
 export interface APIResponse<T = unknown> {
