@@ -43,7 +43,7 @@ To get a local copy up and running, follow these simple steps.
 
 1.  **Clone the repository:**
     ```sh
-    git clone https://github.com/your-username/toxic-release-mapper.git
+    git clone https://github.com/tmtran612/toxic-release-mapper.git
     cd toxic-release-mapper
     ```
 
@@ -55,8 +55,7 @@ To get a local copy up and running, follow these simple steps.
 3.  **Set up environment variables:**
     Create a `.env.local` file in the root of the project and add your API keys.
     ```env
-    GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
-    # Add any other environment variables here
+    GOOGLE_GENERATIVE_AI_API_KEY="YOUR_GEMINI_API_KEY"
     ```
 
 4.  **Run the development server:**
